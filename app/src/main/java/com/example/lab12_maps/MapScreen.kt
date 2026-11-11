@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlinx.coroutines.delay
 import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -46,6 +47,7 @@ import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
+import com.google.maps.android.SphericalUtil
 
 private val arequipa = LatLng(-16.4040102, -71.559611)
 private val yura = LatLng(-16.2520984, -71.6836503)
@@ -54,6 +56,7 @@ private val yura = LatLng(-16.2520984, -71.6836503)
 fun MapScreen() {
     var mapType by remember { mutableStateOf(MapType.NORMAL) }
     var menuOpen by remember { mutableStateOf(false) }
+    var showDistance by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val camera = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(arequipa, 12f)
@@ -174,6 +177,11 @@ fun MapScreen() {
                     }
                 }) { Text("Mi ubicación") }
                 if (locationMessage.isNotEmpty()) Text(locationMessage)
+                Button(onClick = { showDistance = !showDistance }) { Text("Medir distancia") }
+                if (showDistance) {
+                    val km = SphericalUtil.computeDistanceBetween(plaza.first(), lambramani.first()) / 1000.0
+                    Text("Plaza - Lambramani: ${String.format(Locale.US, "%.2f", km)} km en línea recta")
+                }
             }
         }
     }
