@@ -49,6 +49,8 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.SphericalUtil
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
 
 private val arequipa = LatLng(-16.4040102, -71.559611)
 private val yura = LatLng(-16.2520984, -71.6836503)
@@ -65,6 +67,36 @@ fun MapScreen() {
     val context = LocalContext.current
     var locationMessage by remember { mutableStateOf("") }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
+    var qrMessage by remember { mutableStateOf("") }
+    var qrLocation by remember { mutableStateOf<LatLng?>(null) }
+    val qrPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            try {
+                val image = InputImage.fromFilePath(context, uri)
+                val scanner = BarcodeScanning.getClient()
+                scanner.process(image)
+                    .addOnSuccessListener { codes ->
+                        val value = codes.firstOrNull()?.rawValue.orEmpty()
+                        val coords = value.removePrefix("geo:").substringBefore("?").split(",")
+                        val latitude = coords.getOrNull(0)?.toDoubleOrNull()
+                        val longitude = coords.getOrNull(1)?.toDoubleOrNull()
+                        if (value.startsWith("geo:") && latitude != null && longitude != null &&
+                            latitude in -90.0..90.0 && longitude in -180.0..180.0) {
+                            val point = LatLng(latitude, longitude)
+                            qrLocation = point
+                            qrMessage = "Ubicación del QR encontrada"
+                            scope.launch { camera.animate(CameraUpdateFactory.newLatLngZoom(point, 15f), 1500) }
+                        } else {
+                            qrMessage = "El QR no contiene una ubicación válida"
+                        }
+                    }
+                    .addOnFailureListener { qrMessage = "No se pudo leer la imagen" }
+                    .addOnCompleteListener { scanner.close() }
+            } catch (_: Exception) {
+                qrMessage = "No se pudo abrir la imagen"
+            }
+        }
+    }
     @SuppressLint("MissingPermission")
     fun findLocation() {
         locationMessage = "Buscando ubicación"
@@ -131,6 +163,9 @@ fun MapScreen() {
             currentLocation?.let { point ->
                 Marker(state = rememberMarkerState(position = point), title = "Mi ubicación")
             }
+            qrLocation?.let { point ->
+                Marker(state = rememberMarkerState(position = point), title = "Ubicación del QR")
+            }
             listOf(mall, lambramani, plaza).forEach { points ->
                 Polygon(points = points, strokeColor = Color.Red, fillColor = Color.Blue.copy(alpha = 0.35f), strokeWidth = 5f)
             }
@@ -184,6 +219,8 @@ fun MapScreen() {
                     val km = SphericalUtil.computeDistanceBetween(plaza.first(), lambramani.first()) / 1000.0
                     Text("Plaza - Lambramani: ${String.format(Locale.US, "%.2f", km)} km en línea recta")
                 }
+                Button(onClick = { qrPicker.launch("image/*") }) { Text("Abrir QR de ubicación") }
+                if (qrMessage.isNotEmpty()) Text(qrMessage)
             }
         }
     }

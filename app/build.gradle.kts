@@ -37,5 +37,6 @@ dependencies {
     implementation("com.google.maps.android:maps-compose-utils:4.4.1")
     implementation("com.google.maps.android:maps-compose-widgets:4.4.1")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
