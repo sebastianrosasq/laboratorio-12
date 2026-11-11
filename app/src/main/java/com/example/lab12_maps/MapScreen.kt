@@ -2,6 +2,11 @@ package com.example.lab12_maps
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +34,9 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
@@ -51,6 +59,32 @@ fun MapScreen() {
         position = CameraPosition.fromLatLngZoom(arequipa, 12f)
     }
     val context = LocalContext.current
+    var locationMessage by remember { mutableStateOf("") }
+    var currentLocation by remember { mutableStateOf<LatLng?>(null) }
+    @SuppressLint("MissingPermission")
+    fun findLocation() {
+        locationMessage = "Buscando ubicación"
+        val token = CancellationTokenSource()
+        LocationServices.getFusedLocationProviderClient(context)
+            .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, token.token)
+            .addOnSuccessListener { location ->
+                if (location == null) {
+                    locationMessage = "No se pudo obtener la ubicación"
+                } else {
+                    val point = LatLng(location.latitude, location.longitude)
+                    currentLocation = point
+                    locationMessage = "Ubicación encontrada"
+                    scope.launch { camera.animate(CameraUpdateFactory.newLatLngZoom(point, 15f), 1500) }
+                }
+            }
+            .addOnFailureListener { locationMessage = "No se pudo obtener la ubicación" }
+    }
+    val permissionRequest = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.any { it }) findLocation()
+        else locationMessage = "Permiso de ubicación no concedido"
+    }
     val mountainIcon = remember {
         val drawable = requireNotNull(ContextCompat.getDrawable(context, R.drawable.marcador_montana))
         val bitmap = Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
@@ -89,6 +123,9 @@ fun MapScreen() {
             locations.forEach { (position, name) ->
                 Marker(state = rememberMarkerState(position = position), title = name, snippet = "Punto de interés")
             }
+            currentLocation?.let { point ->
+                Marker(state = rememberMarkerState(position = point), title = "Mi ubicación")
+            }
             listOf(mall, lambramani, plaza).forEach { points ->
                 Polygon(points = points, strokeColor = Color.Red, fillColor = Color.Blue.copy(alpha = 0.35f), strokeWidth = 5f)
             }
@@ -124,6 +161,19 @@ fun MapScreen() {
                 Button(onClick = {
                     scope.launch { camera.animate(CameraUpdateFactory.newLatLngZoom(yura, 12f), 3000) }
                 }) { Text("Ir a Yura") }
+                Button(onClick = {
+                    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    if (fine == PackageManager.PERMISSION_GRANTED || coarse == PackageManager.PERMISSION_GRANTED) {
+                        findLocation()
+                    } else {
+                        permissionRequest.launch(arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ))
+                    }
+                }) { Text("Mi ubicación") }
+                if (locationMessage.isNotEmpty()) Text(locationMessage)
             }
         }
     }
