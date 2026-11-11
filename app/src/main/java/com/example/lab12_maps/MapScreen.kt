@@ -35,6 +35,7 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -89,6 +90,7 @@ fun MapScreen() {
         else locationMessage = "Permiso de ubicación no concedido"
     }
     val mountainIcon = remember {
+        MapsInitializer.initialize(context)
         val drawable = requireNotNull(ContextCompat.getDrawable(context, R.drawable.marcador_montana))
         val bitmap = Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
         drawable.setBounds(0, 0, bitmap.width, bitmap.height)
