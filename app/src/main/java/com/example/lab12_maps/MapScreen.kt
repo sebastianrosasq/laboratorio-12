@@ -77,12 +77,9 @@ fun MapScreen() {
                 scanner.process(image)
                     .addOnSuccessListener { codes ->
                         val value = codes.firstOrNull()?.rawValue.orEmpty()
-                        val coords = value.removePrefix("geo:").substringBefore("?").split(",")
-                        val latitude = coords.getOrNull(0)?.toDoubleOrNull()
-                        val longitude = coords.getOrNull(1)?.toDoubleOrNull()
-                        if (value.startsWith("geo:") && latitude != null && longitude != null &&
-                            latitude in -90.0..90.0 && longitude in -180.0..180.0) {
-                            val point = LatLng(latitude, longitude)
+                        val coordinates = parseGeoQr(value)
+                        if (coordinates != null) {
+                            val point = LatLng(coordinates.first, coordinates.second)
                             qrLocation = point
                             qrMessage = "Ubicación del QR encontrada"
                             scope.launch { camera.animate(CameraUpdateFactory.newLatLngZoom(point, 15f), 1500) }
